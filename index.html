@@ -153,7 +153,7 @@
 
                         <div class="text-right z-10">
                             <div class="flex flex-col">
-                                <span class="text-[10px] text-slate-400 uppercase">Entregues</span>
+                                <span class="text-[10px] text-slate-400 uppercase">Entregues / Agendadas</span>
                                 <span id="current-value" class="text-4xl font-black text-white leading-none tracking-tight">0</span>
                             </div>
                             <div class="w-full h-px bg-slate-700 my-2"></div>
@@ -254,7 +254,16 @@
         function processData(rawData) {
             state.data = rawData.map(row => {
                 const keys = Object.keys(row);
-                const getVal = (s) => row[keys.find(k => k.toLowerCase().includes(s))];
+                // BUSCA INTELIGENTE: Ignora acentos e maiúsculas para achar a coluna certa
+                const getVal = (search) => {
+                    const key = keys.find(k => 
+                        k.toLowerCase()
+                         .normalize("NFD")
+                         .replace(/[\u0300-\u036f]/g, "")
+                         .includes(search)
+                    );
+                    return row[key];
+                };
                 
                 const vaga = parseInt((getVal('vaga') || '0').replace(/\D/g, '')) || 0;
                 const dataRaw = getVal('data') || getVal('entrega');
@@ -310,7 +319,10 @@
             const now = new Date();
             now.setHours(0,0,0,0);
             
-            const deliveredItems = state.data.filter(i => i.date <= now);
+            // CORREÇÃO: Agora contamos TODOS os itens do CSV no total,
+            // independentemente se a data é futura ou passada.
+            const deliveredItems = state.data; 
+            
             const currentTotal = isCreche 
                 ? deliveredItems.length 
                 : deliveredItems.reduce((acc, cur) => acc + cur.vagas, 0);
@@ -321,10 +333,9 @@
             circle.style.strokeDashoffset = offset;
             
             // Lógica de Cores Ajustada:
-            // Vermelho (<10%) -> Laranja Jamildo (<50%) -> Verde (>50%)
-            if(pct < 10) circle.style.stroke = '#ef4444'; // Vermelho Crítico
-            else if(pct < 50) circle.style.stroke = '#f83d03'; // Laranja Jamildo (Em Progresso)
-            else circle.style.stroke = '#34d399'; // Verde
+            if(pct < 10) circle.style.stroke = '#ef4444'; 
+            else if(pct < 50) circle.style.stroke = '#f83d03'; 
+            else circle.style.stroke = '#34d399'; 
 
             animateValue(document.getElementById('current-value'), currentTotal);
             document.getElementById('target-value').innerText = goal.toLocaleString('pt-BR');
@@ -344,7 +355,6 @@
                 const dateStr = item.date.toLocaleDateString('pt-BR');
                 const card = document.createElement('div');
                 
-                // Card Futuro agora usa Laranja Jamildo
                 if (isFuture) {
                     card.className = "bg-gradient-to-r from-[#f83d03]/10 to-orange-900/10 border border-[#f83d03]/30 p-4 rounded-xl flex justify-between items-center shadow-lg relative overflow-hidden group";
                 } else {
@@ -355,9 +365,7 @@
                     ? `<span class="bg-[#f83d03] text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm animate-pulse ml-2">EM BREVE</span>`
                     : `<span class="text-green-500 text-[10px] ml-2"><i class="fas fa-check-circle"></i></span>`;
 
-                // Highlight text agora Laranja Jamildo
                 const highlightClass = isFuture ? "text-[#f83d03]" : "text-white";
-                // Ícone agora Laranja Jamildo
                 const iconBgClass = isFuture ? 'bg-[#f83d03] text-white' : 'bg-slate-700 text-slate-400';
 
                 card.innerHTML = `
