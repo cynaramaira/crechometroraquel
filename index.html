@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crechômetro - Monitor de Obras</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Poppins (Amigável) e Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- PapaParse para CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Configuração de Cores Jamildo */
+        :root {
+            --color-brand-blue: #024796;
+            --color-brand-dark: #001226;
+            --color-brand-orange: #f83d03; /* O Laranja Principal */
+            --color-fun-green: #34d399;
+            --color-fun-purple: #a78bfa;
+        }
+
+        body {
+            background-color: var(--color-brand-dark);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            background-image: radial-gradient(#024796 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        h1, h2, h3, .font-display {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Card Glass Effect */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--color-brand-orange); }
+
+        /* Animações */
+        .pulse-soft { animation: pulse-soft 2s infinite; }
+        @keyframes pulse-soft { 0% { opacity: 0.8; } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.8; } }
+
+        /* Gauge */
+        .gauge-bg { stroke: rgba(255,255,255,0.1); }
+        .gauge-fill { transition: stroke-dashoffset 1.5s ease-out; stroke-linecap: round; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Container Principal -->
+    <main class="w-full max-w-[600px] bg-[#0f172a] border border-slate-700 rounded-3xl overflow-hidden shadow-2xl relative flex flex-col h-[650px]">
+        
+        <!-- Header -->
+        <header class="bg-gradient-to-br from-[#024796] to-[#001e45] p-6 relative overflow-hidden shrink-0 z-10">
+            <div class="absolute -right-4 -top-4 text-white/5 text-9xl transform rotate-12">
+                <i class="fas fa-shapes"></i>
+            </div>
+            <div class="absolute left-10 bottom-0 w-24 h-24 bg-blue-500/20 rounded-full blur-2xl"></div>
+
+            <div class="relative z-10 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white p-2 rounded-xl shadow-lg transform -rotate-3">
+                        <img src="https://jamildo.com/media/uploads/logojamildo.png" alt="Jamildo" class="h-6 w-auto">
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-white tracking-tight leading-none">CRECHÔMETRO</h1>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-blue-200 bg-blue-900/50 px-2 py-0.5 rounded-full inline-block mt-1">Gestão Raquel Lyra</span>
+                    </div>
+                </div>
+                
+                <!-- Countdown Badge -->
+                <div class="text-right">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-blue-200 uppercase font-bold">Faltam</span>
+                        <div class="flex items-center bg-[#f83d03] text-white px-3 py-1 rounded-lg shadow-lg transform rotate-2">
+                            <i class="fas fa-hourglass-half text-xs mr-2 animate-spin-slow"></i>
+                            <span id="countdown-days" class="font-black text-lg leading-none">--</span>
+                            <span class="text-[10px] ml-1 font-bold">dias</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mt-6 relative">
+                <div class="flex justify-between text-[10px] font-bold text-blue-200 mb-1 px-1">
+                    <span>JAN/23</span>
+                    <span id="progress-text">Progresso do Tempo</span>
+                    <span>DEZ/26</span>
+                </div>
+                <div class="h-3 bg-black/30 rounded-full overflow-hidden relative">
+                    <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(90deg, transparent, transparent 10px, #fff 10px, #fff 20px);"></div>
+                    <div id="time-bar" class="h-full bg-gradient-to-r from-blue-400 to-cyan-300 w-0 transition-all duration-1000 relative rounded-full">
+                        <div class="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 bg-white text-[#f83d03] rounded-full p-1 shadow-md z-10 text-[8px] w-5 h-5 flex items-center justify-center">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Toggle Controls -->
+        <div class="bg-[#0f172a] p-2 flex gap-2 shrink-0 border-b border-slate-800">
+            <button onclick="setMode('creches')" id="btn-creches" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 bg-[#024796] text-white shadow-lg shadow-blue-900/50 border border-blue-400/30">
+                <!-- Ícone agora Branco ou Laranja muito claro para contraste no azul, ou o Laranja Jamildo se preferir "marca sobre marca" -->
+                <i class="fas fa-school text-[#f83d03] bg-white rounded-full p-1 text-[10px]"></i> CRECHES
+            </button>
+            <button onclick="setMode('vagas')" id="btn-vagas" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-all hover:bg-slate-800 text-slate-400 flex items-center justify-center gap-2">
+                <i class="fas fa-child text-pink-400"></i> VAGAS
+            </button>
+        </div>
+
+        <!-- Conteúdo -->
+        <div id="dashboard-content" class="flex-1 overflow-y-auto relative hidden opacity-0 transition-opacity duration-500">
+            
+            <!-- Cards de Status -->
+            <div class="p-4 grid grid-cols-2 gap-4">
+                <!-- Card Meta -->
+                <div class="col-span-2 glass-card rounded-2xl p-5 relative overflow-hidden group">
+                    <div class="absolute right-0 top-0 p-4 opacity-10 transform rotate-12 group-hover:rotate-0 transition-transform duration-700">
+                        <i class="fas fa-clipboard-check text-8xl text-white"></i>
+                    </div>
+                    
+                    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Meta vs Realidade</h2>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="relative w-24 h-24 shrink-0">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="40" fill="none" class="gauge-bg" stroke-width="12" />
+                                <circle id="gauge-circle" cx="50" cy="50" r="40" fill="none" stroke="#f83d03" stroke-width="12" stroke-dasharray="251" stroke-dashoffset="251" class="gauge-fill" />
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="percent-text" class="text-xs font-bold">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="text-right z-10">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-400 uppercase">Entregues</span>
+                                <span id="current-value" class="text-4xl font-black text-white leading-none tracking-tight">0</span>
+                            </div>
+                            <div class="w-full h-px bg-slate-700 my-2"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-400 uppercase">Meta Prometida</span>
+                                <span id="target-value" class="text-lg font-bold text-slate-300 font-mono">250</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card de Ritmo (Agora em Laranja Jamildo) -->
+                <div class="col-span-2 bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-4 border border-slate-700 flex items-center justify-between shadow-lg">
+                    <div>
+                        <!-- Texto Laranja -->
+                        <p class="text-[10px] font-bold text-[#f83d03] uppercase mb-1"><i class="fas fa-hard-hat mr-1"></i> Ritmo Necessário</p>
+                        <div class="flex items-baseline gap-1">
+                            <span id="rate-value" class="text-2xl font-black text-white">0</span>
+                            <span id="rate-unit" class="text-[10px] font-bold text-slate-400 uppercase">por mês</span>
+                        </div>
+                    </div>
+                    <!-- Ícone Laranja -->
+                    <div class="h-10 w-10 bg-[#f83d03]/10 rounded-full flex items-center justify-center text-[#f83d03] pulse-soft">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Entregas -->
+            <div class="px-4 pb-4">
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-list-ul text-blue-400"></i> Linha do Tempo
+                    </h3>
+                    <span id="total-items" class="text-[10px] font-bold bg-slate-800 text-slate-300 px-2 py-1 rounded-md">0 itens</span>
+                </div>
+
+                <div id="data-list" class="space-y-3">
+                    <!-- JS vai preencher -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading -->
+        <div id="loading-state" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a] z-50">
+            <i class="fas fa-circle-notch fa-spin text-4xl text-[#f83d03] mb-4"></i>
+            <p class="text-sm font-bold text-slate-400 animate-pulse">Carregando dados...</p>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-[#020617] p-3 text-center border-t border-slate-800 shrink-0 z-10">
+            <div class="flex justify-center items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+                <img src="https://jamildo.com/media/uploads/logojamildo.png" alt="Jamildo" class="h-4">
+                <span class="text-[10px] text-slate-400 font-medium">Jamildo.com • Dados Oficiais</span>
+            </div>
+        </footer>
+
+    </main>
+
+    <script>
+        const CONFIG = {
+            csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0qnK9dNZVZRNEOiykKx1lcjnu0ioxBB-z2-pOzmJ1DnccKtwbierRrqLqlqUH3LkL4sr8obOenZcI/pub?output=csv',
+            mandateStart: new Date('2023-01-01'),
+            mandateEnd: new Date('2026-12-31'),
+            goals: { creches: 250, vagas: 60000 }
+        };
+
+        let state = { data: [], mode: 'creches', monthsLeft: 1 };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            calculateTime();
+            loadData();
+        });
+
+        function calculateTime() {
+            const now = new Date();
+            const total = CONFIG.mandateEnd - CONFIG.mandateStart;
+            const elapsed = now - CONFIG.mandateStart;
+            const percent = Math.min(100, Math.max(0, (elapsed / total) * 100));
+            const daysLeft = Math.ceil((CONFIG.mandateEnd - now) / (1000 * 60 * 60 * 24));
+            const months = (CONFIG.mandateEnd.getFullYear() - now.getFullYear()) * 12 + (CONFIG.mandateEnd.getMonth() - now.getMonth());
+            state.monthsLeft = Math.max(1, months);
+
+            document.getElementById('countdown-days').innerText = daysLeft;
+            document.getElementById('time-bar').style.width = `${percent}%`;
+        }
+
+        function loadData() {
+            Papa.parse(CONFIG.csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => processData(results.data),
+                error: (err) => console.error(err)
+            });
+        }
+
+        function processData(rawData) {
+            state.data = rawData.map(row => {
+                const keys = Object.keys(row);
+                const getVal = (s) => row[keys.find(k => k.toLowerCase().includes(s))];
+                
+                const vaga = parseInt((getVal('vaga') || '0').replace(/\D/g, '')) || 0;
+                const dataRaw = getVal('data') || getVal('entrega');
+                const munic = getVal('municipio') || 'PE';
+
+                return {
+                    municipio: munic,
+                    vagas: vaga,
+                    date: parseDate(dataRaw),
+                    originalDate: dataRaw
+                };
+            }).filter(item => item.date !== null);
+
+            state.data.sort((a, b) => b.date - a.date);
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden', 'opacity-0');
+            render();
+        }
+
+        function parseDate(str) {
+            if (!str) return null;
+            const parts = str.split(/[./-]/);
+            if (parts.length === 3) return new Date(parts[2], parts[1]-1, parts[0]);
+            return null;
+        }
+
+        window.setMode = (mode) => {
+            state.mode = mode;
+            const btnC = document.getElementById('btn-creches');
+            const btnV = document.getElementById('btn-vagas');
+            
+            const activeClass = "bg-[#024796] text-white shadow-lg shadow-blue-900/50 border border-blue-400/30".split(" ");
+            const inactiveClass = "hover:bg-slate-800 text-slate-400".split(" ");
+
+            if(mode === 'creches') {
+                btnC.classList.add(...activeClass);
+                btnC.classList.remove(...inactiveClass);
+                btnV.classList.remove(...activeClass);
+                btnV.classList.add(...inactiveClass);
+            } else {
+                btnV.classList.add(...activeClass);
+                btnV.classList.remove(...inactiveClass);
+                btnC.classList.remove(...activeClass);
+                btnC.classList.add(...inactiveClass);
+            }
+            render();
+        }
+
+        function render() {
+            const isCreche = state.mode === 'creches';
+            const goal = isCreche ? CONFIG.goals.creches : CONFIG.goals.vagas;
+            const now = new Date();
+            now.setHours(0,0,0,0);
+            
+            const deliveredItems = state.data.filter(i => i.date <= now);
+            const currentTotal = isCreche 
+                ? deliveredItems.length 
+                : deliveredItems.reduce((acc, cur) => acc + cur.vagas, 0);
+
+            const pct = Math.min(100, (currentTotal / goal) * 100);
+            const circle = document.getElementById('gauge-circle');
+            const offset = 251 - (pct/100)*251;
+            circle.style.strokeDashoffset = offset;
+            
+            // Lógica de Cores Ajustada:
+            // Vermelho (<10%) -> Laranja Jamildo (<50%) -> Verde (>50%)
+            if(pct < 10) circle.style.stroke = '#ef4444'; // Vermelho Crítico
+            else if(pct < 50) circle.style.stroke = '#f83d03'; // Laranja Jamildo (Em Progresso)
+            else circle.style.stroke = '#34d399'; // Verde
+
+            animateValue(document.getElementById('current-value'), currentTotal);
+            document.getElementById('target-value').innerText = goal.toLocaleString('pt-BR');
+            document.getElementById('percent-text').innerText = pct.toFixed(1) + '%';
+
+            const remaining = Math.max(0, goal - currentTotal);
+            const rate = Math.ceil(remaining / state.monthsLeft);
+            document.getElementById('rate-value').innerText = rate.toLocaleString('pt-BR');
+            document.getElementById('rate-unit').innerText = isCreche ? 'creches / mês' : 'vagas / mês';
+
+            const listEl = document.getElementById('data-list');
+            listEl.innerHTML = '';
+            document.getElementById('total-items').innerText = `${state.data.length} registros`;
+
+            state.data.forEach(item => {
+                const isFuture = item.date > now;
+                const dateStr = item.date.toLocaleDateString('pt-BR');
+                const card = document.createElement('div');
+                
+                // Card Futuro agora usa Laranja Jamildo
+                if (isFuture) {
+                    card.className = "bg-gradient-to-r from-[#f83d03]/10 to-orange-900/10 border border-[#f83d03]/30 p-4 rounded-xl flex justify-between items-center shadow-lg relative overflow-hidden group";
+                } else {
+                    card.className = "bg-slate-800/50 border border-slate-700 p-3 rounded-xl flex justify-between items-center hover:bg-slate-800 transition-colors";
+                }
+
+                const statusBadge = isFuture 
+                    ? `<span class="bg-[#f83d03] text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm animate-pulse ml-2">EM BREVE</span>`
+                    : `<span class="text-green-500 text-[10px] ml-2"><i class="fas fa-check-circle"></i></span>`;
+
+                // Highlight text agora Laranja Jamildo
+                const highlightClass = isFuture ? "text-[#f83d03]" : "text-white";
+                // Ícone agora Laranja Jamildo
+                const iconBgClass = isFuture ? 'bg-[#f83d03] text-white' : 'bg-slate-700 text-slate-400';
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-full ${iconBgClass} flex items-center justify-center font-bold text-lg shadow-inner">
+                            <i class="fas ${isFuture ? 'fa-clock' : 'fa-check'}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center">
+                                <span class="text-xs font-bold ${highlightClass} uppercase tracking-wide">${item.municipio}</span>
+                                ${statusBadge}
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                                <i class="fas fa-calendar-alt text-[8px] opacity-50"></i> ${dateStr}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-sm font-black ${isFuture ? 'text-[#f83d03]' : 'text-blue-300'}">${item.vagas}</span>
+                        <span class="block text-[8px] text-slate-500 uppercase font-bold">Vagas</span>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        function animateValue(obj, end) {
+            let startTimestamp = null;
+            const start = parseInt(obj.innerText.replace(/\D/g,'')) || 0;
+            const duration = 1000;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString('pt-BR');
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+    </script>
+</body>
+</html>
